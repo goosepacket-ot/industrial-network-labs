@@ -1,0 +1,42 @@
+# OSPF with BFD — fast failure detection between two routed sites.
+#
+# Topology:            r1 ======(link A)====== r2
+#                        \\                    //
+#                         ==(link B via r3)===
+#
+# r1 and r2 run OSPF over two paths; BFD brings the dead-interface detection down from
+# ~40 s (OSPF dead interval) to sub-second, so traffic reroutes almost immediately when a
+# link drops. That failover time is exactly what matters for an OT WAN between substations.
+#
+# Run:   sudo containerlab deploy -t ospf-bfd.clab.yml
+# Test:  docker exec clab-ospfbfd-r1 vtysh -c "show ip ospf neighbor"
+#        docker exec clab-ospfbfd-r1 vtysh -c "show bfd peers"
+#        then down a link and watch reconvergence (see README).
+
+name: ospfbfd
+
+topology:
+  nodes:
+    r1:
+      kind: linux
+      image: quay.io/frrouting/frr:9.1.0
+      binds:
+        - configs/r1/daemons:/etc/frr/daemons
+        - configs/r1/frr.conf:/etc/frr/frr.conf
+    r2:
+      kind: linux
+      image: quay.io/frrouting/frr:9.1.0
+      binds:
+        - configs/r2/daemons:/etc/frr/daemons
+        - configs/r2/frr.conf:/etc/frr/frr.conf
+    r3:
+      kind: linux
+      image: quay.io/frrouting/frr:9.1.0
+      binds:
+        - configs/r3/daemons:/etc/frr/daemons
+        - configs/r3/frr.conf:/etc/frr/frr.conf
+
+  links:
+    - endpoints: ["r1:eth1", "r2:eth1"]   # direct link A
+    - endpoints: ["r1:eth2", "r3:eth1"]   # link B, path via r3
+    - endpoints: ["r3:eth2", "r2:eth2"]

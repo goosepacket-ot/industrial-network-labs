@@ -1,0 +1,48 @@
+# VRRP — a redundant default gateway for an OT segment.
+#
+#   host ── sw ── gw1 (VRRP master, priority 200)
+#                  └ gw2 (VRRP backup, priority 100)
+#
+# gw1 and gw2 share a virtual IP (10.50.0.1). The host uses that VIP as its default gateway and
+# never has to care which physical router is alive. Kill the master and the backup takes over the
+# VIP and MAC within a couple of seconds — no change on the host. This is how you give field
+# devices a gateway that survives a router reboot.
+#
+# Run:  sudo containerlab deploy -t vrrp.clab.yml
+
+name: vrrp
+
+topology:
+  nodes:
+    gw1:
+      kind: linux
+      image: quay.io/frrouting/frr:9.1.0
+      binds:
+        - configs/gw1/daemons:/etc/frr/daemons
+        - configs/gw1/frr.conf:/etc/frr/frr.conf
+    gw2:
+      kind: linux
+      image: quay.io/frrouting/frr:9.1.0
+      binds:
+        - configs/gw2/daemons:/etc/frr/daemons
+        - configs/gw2/frr.conf:/etc/frr/frr.conf
+    sw:
+      kind: linux
+      image: quay.io/frrouting/frr:9.1.0   # used as a plain L2 bridge host
+      exec:
+        - ip link add br0 type bridge
+        - ip link set br0 up
+        - ip link set eth1 master br0
+        - ip link set eth2 master br0
+        - ip link set eth3 master br0
+    host:
+      kind: linux
+      image: alpine:3.20
+      exec:
+        - ip addr add 10.50.0.100/24 dev eth1
+        - ip route replace default via 10.50.0.1
+
+  links:
+    - endpoints: ["gw1:eth1", "sw:eth1"]
+    - endpoints: ["gw2:eth1", "sw:eth2"]
+    - endpoints: ["host:eth1", "sw:eth3"]

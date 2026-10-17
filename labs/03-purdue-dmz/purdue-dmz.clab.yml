@@ -1,0 +1,60 @@
+# Purdue-model segmentation with a Linux firewall and a live Modbus demo.
+#
+#   scada (10.10.10.10)  ─┐                           ┌─ plc (10.10.20.11, Modbus server)
+#                         ├─ fw (router + iptables) ──┤
+#   enterprise (10.20.0.50) ┘                         └─ (Control zone)
+#
+# The firewall allows the SCADA zone to poll the PLC on TCP/502 and DROPs (and logs) any Modbus
+# from the enterprise zone. You prove the segmentation by running the Modbus client from both
+# hosts: SCADA reads the registers, enterprise times out.
+#
+# Run:  sudo containerlab deploy -t purdue-dmz.clab.yml
+
+name: purdue
+
+topology:
+  nodes:
+    fw:
+      kind: linux
+      image: alpine:3.20
+      binds:
+        - configs/fw/firewall.sh:/firewall.sh
+      exec:
+        - ip addr add 10.10.10.1/24 dev eth1
+        - ip addr add 10.10.20.1/24 dev eth2
+        - ip addr add 10.20.0.1/24 dev eth3
+        - apk add --no-cache iptables
+        - sh /firewall.sh
+
+    plc:
+      kind: linux
+      image: python:3.12-alpine
+      binds:
+        - apps/modbus_server.py:/modbus_server.py
+      exec:
+        - ip addr add 10.10.20.11/24 dev eth1
+        - ip route replace default via 10.10.20.1
+        - sh -c "python3 /modbus_server.py 502 &"
+
+    scada:
+      kind: linux
+      image: python:3.12-alpine
+      binds:
+        - apps/modbus_client.py:/modbus_client.py
+      exec:
+        - ip addr add 10.10.10.10/24 dev eth1
+        - ip route replace default via 10.10.10.1
+
+    enterprise:
+      kind: linux
+      image: python:3.12-alpine
+      binds:
+        - apps/modbus_client.py:/modbus_client.py
+      exec:
+        - ip addr add 10.20.0.50/24 dev eth1
+        - ip route replace default via 10.20.0.1
+
+  links:
+    - endpoints: ["scada:eth1", "fw:eth1"]
+    - endpoints: ["plc:eth1", "fw:eth2"]
+    - endpoints: ["enterprise:eth1", "fw:eth3"]
