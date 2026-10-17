@@ -40,7 +40,7 @@ This honesty is deliberate: the labs are a solid, documented starting point, not
 
 ## Why these labs
 
-After 25+ years on industrial networks, the two questions that decide whether a design is any good are *"what happens when a link or a box dies?"* and *"can the thing that shouldn't talk to the PLC actually reach it?"*. These labs let you answer both with your own hands in a few minutes, for free, without touching production — which is how I think OT networking should be taught and validated.
+After 5+ years on industrial networks, the two questions that decide whether a design is any good are *"what happens when a link or a box dies?"* and *"can the thing that shouldn't talk to the PLC actually reach it?"*. These labs let you answer both with your own hands in a few minutes, for free, without touching production — which is how I think OT networking should be taught and validated.
 
 ## License
 
